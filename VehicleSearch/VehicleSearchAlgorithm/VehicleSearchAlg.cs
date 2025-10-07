@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.Design;
 using Objects;
 using System.Linq;
+using System.Text.Json;
 
 namespace VehicleSearchAlgorithm;
 //The results should:
@@ -18,8 +19,29 @@ namespace VehicleSearchAlgorithm;
 
 public static class VehicleSearchAlg
 {
-    public static List<SearchResult> FindValidLocations(List<Vehicle> vehicles, List<Listing> listings)
+    public static void Main(string[] args)
     {
+      
+        // Load test JSON
+        string listingsJson = File.ReadAllText(@"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\listings.json");
+        List<Listing> listings = JsonSerializer.Deserialize<List<Listing>>(listingsJson);
+
+        string vehiclesJson = File.ReadAllText(@"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\vehicles.json");
+        List<Vehicle> vehicles = JsonSerializer.Deserialize<List<Vehicle>>(vehiclesJson);
+
+        // Call your algorithm
+        var results = VehicleSearchAlg.FindLocations(vehicles, listings);
+
+        // Print results
+        foreach (var r in results)
+        {
+            Console.WriteLine($"Location: {r.location_id}, Total Price: {r.total_price_in_cents}, Listings: {string.Join(",", r.listing_ids)}");
+        }
+    }
+    public static List<SearchResult> FindLocations(List<Vehicle> vehicles, List<Listing> listings)
+    {
+        
+
         List<SearchResult> results = new List<SearchResult>();
         //Group listings by their location_id
         Dictionary<string, List<Listing>> groupedByLocation =
@@ -163,8 +185,11 @@ public static SearchResult? FindCheapestAssignmentForOrientation(
 
             // Backtrack
             usedCapacity[listing]--;
-            if (usedCapacity[listing] == 0)
-                listingsUsed.Remove(listing);
+            var nextListingsUsed = new List<Listing>(listingsUsed);
+            if (!nextListingsUsed.Contains(listing))
+                nextListingsUsed.Add(listing);
+            DFS(vehicleIndex + 1, new Dictionary<Listing,int>(usedCapacity), currentCost + addedCost, nextListingsUsed);
+
         }
     }
 
