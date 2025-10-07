@@ -134,66 +134,79 @@ public static SearchResult? FindCheapestAssignmentForOrientation(
     int bestCost = int.MaxValue;
 
     // Step 2: DFS 
-    void DFS(
-        int vehicleIndex,
-        Dictionary<Listing, int> usedCapacity,
-        int currentCost,
-        List<Listing> listingsUsed)
+  void DFS(
+    int vehicleIndex,
+    Dictionary<Listing, Dictionary<Vehicle,int>> usedCapacity,
+    int currentCost,
+    List<Listing> listingsUsed)
+{
+    // Base case: all vehicles placed
+    if (vehicleIndex == vehicleUnits.Count)
     {
-        // Base case: all vehicles placed
-        if (vehicleIndex == vehicleUnits.Count)
+        if (currentCost < bestCost)
         {
-            if (currentCost < bestCost)
+            bestCost = currentCost;
+            bestResult = new SearchResult
             {
-                bestCost = currentCost;
-                bestResult = new SearchResult
-                {
-                    location_id = listings[0].location_id,
-                    listing_ids = listingsUsed.Select(l => l.id).ToList(),
-                    total_price_in_cents = currentCost
-                };
-            }
-            return;
+                location_id = listings[0].location_id,
+                listing_ids = listingsUsed.Select(l => l.id).ToList(),
+                total_price_in_cents = currentCost
+            };
         }
-
-        var vehicle = vehicleUnits[vehicleIndex];
-
-        // Try to place this vehicle in each listing
-        foreach (Listing listing in listings)
-        {
-            int available = capacities[listing][orientation].ContainsKey(vehicle)
-                ? capacities[listing][orientation][vehicle] - (usedCapacity.ContainsKey(listing) ? usedCapacity[listing] : 0)
-                : 0;
-
-            if (available <= 0) continue;
-
-            // Determine added cost
-            int addedCost = listingsUsed.Contains(listing) ? 0 : listing.price_in_cents;
-
-            // Prune if this path is already more expensive than best
-            if (currentCost + addedCost >= bestCost) continue;
-
-            // Update state
-            if (!usedCapacity.ContainsKey(listing))
-                usedCapacity[listing] = 0;
-            usedCapacity[listing]++;
-            if (!listingsUsed.Contains(listing))
-                listingsUsed.Add(listing);
-
-            // Recurse to next vehicle
-            DFS(vehicleIndex + 1, usedCapacity, currentCost + addedCost, listingsUsed);
-
-            // Backtrack
-            usedCapacity[listing]--;
-            var nextListingsUsed = new List<Listing>(listingsUsed);
-            if (!nextListingsUsed.Contains(listing))
-                nextListingsUsed.Add(listing);
-            DFS(vehicleIndex + 1, new Dictionary<Listing,int>(usedCapacity), currentCost + addedCost, nextListingsUsed);
-
-        }
+        return;
     }
 
-    DFS(0, new Dictionary<Listing, int>(), 0, new List<Listing>());
+    var vehicle = vehicleUnits[vehicleIndex];
+
+    // Try to place this vehicle in each listing
+    foreach (Listing listing in listings)
+    {
+        int used = usedCapacity.ContainsKey(listing) && usedCapacity[listing].ContainsKey(vehicle)
+            ? usedCapacity[listing][vehicle]
+            : 0;
+
+        int available = capacities[listing][orientation][vehicle] - used;
+
+        if (available <= 0) continue;
+
+        // Determine added cost
+        int addedCost = listingsUsed.Contains(listing) ? 0 : listing.price_in_cents;
+
+        // Prune if this path is already more expensive than best
+        if (currentCost + addedCost >= bestCost) continue;
+
+        // --- Update state ---
+        if (!usedCapacity.ContainsKey(listing))
+            usedCapacity[listing] = new Dictionary<Vehicle,int>();
+
+        if (!usedCapacity[listing].ContainsKey(vehicle))
+            usedCapacity[listing][vehicle] = 0;
+
+        usedCapacity[listing][vehicle]++;
+
+        bool addedListing = false;
+        if (!listingsUsed.Contains(listing))
+        {
+            listingsUsed.Add(listing);
+            addedListing = true;
+        }
+
+        // --- Recurse ---
+        DFS(vehicleIndex + 1, usedCapacity, currentCost + addedCost, listingsUsed);
+
+        // --- Backtrack ---
+        usedCapacity[listing][vehicle]--;
+        if (usedCapacity[listing][vehicle] == 0)
+            usedCapacity[listing].Remove(vehicle);
+        if (usedCapacity[listing].Count == 0)
+            usedCapacity.Remove(listing);
+
+        if (addedListing)
+            listingsUsed.Remove(listing);
+    }
+}
+
+    DFS(0, new Dictionary<Listing, Dictionary<Vehicle,int>>(), 0, new List<Listing>());
 
     return bestResult;
 }
