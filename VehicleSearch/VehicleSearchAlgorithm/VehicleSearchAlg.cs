@@ -64,156 +64,114 @@ public static class VehicleSearchAlg
 
     private static SearchResult? FitVehicles(List<Vehicle> vehicles, List<Listing> listings)
     {
-        Dictionary<Listing, Dictionary<string, Dictionary<Vehicle, int>>> capacities =
-            new Dictionary<Listing, Dictionary<string, Dictionary<Vehicle, int>>>();
-        
-        foreach (Listing location in listings)
+        // capacities: Listing -> orientation -> vehicleKey -> capacity
+        Dictionary<Listing, Dictionary<string, Dictionary<string, int>>> capacities =
+            new Dictionary<Listing, Dictionary<string, Dictionary<string, int>>>();
+
+        foreach (Listing listing in listings)
         {
-            Dictionary<string, Dictionary<Vehicle, int>> orientationCap = new Dictionary<string, Dictionary<Vehicle, int>>();
-            orientationCap["widthwise"] = new Dictionary<Vehicle, int>();
-            orientationCap["lengthwise"] = new Dictionary<Vehicle, int>();
+            Dictionary<string, Dictionary<string, int>> orientationCap = new Dictionary<string, Dictionary<string, int>>();
+            orientationCap["widthwise"] = new Dictionary<string, int>();
+            orientationCap["lengthwise"] = new Dictionary<string, int>();
+
             foreach (Vehicle vehicle in vehicles)
             {
-                //widthwise
-                int widthW= location.width / 10;
-                int lengthW = location.length / vehicle.length;
-                orientationCap["widthwise"][vehicle] = Math.Min(widthW, lengthW);
-                //lengthwise
-                int widthL = location.length / 10;
-                int lengthL = location.width / vehicle.length;
-                orientationCap["lengthwise"][vehicle] = Math.Min(widthL, lengthL);
+                string vehicleKey = vehicle.length.ToString(); // simple unique key
 
-            }
-           
-            capacities[location] = orientationCap;
-        }
-      
+                // widthwise
+                int widthwiseCapacity = (listing.width / 10) * (listing.length / vehicles[0].length);
+                orientationCap["widthwise"][vehicleKey] = widthwiseCapacity;
 
-        //
-        SearchResult? widthResult = FindCheapestAssignmentForOrientation(vehicles, listings,capacities,"widthwise");
-        SearchResult? lengthResult =  FindCheapestAssignmentForOrientation(vehicles, listings,capacities,  "lengthwise");
-        if (widthResult == null && lengthResult != null)
-        {
-            return lengthResult;
-        }
-        else if (lengthResult == null)
-        {
-            return widthResult;
-        }
-        else
-        {
-            if (widthResult.total_price_in_cents <= lengthResult.total_price_in_cents)
-            {
-                return widthResult;
+                // lengthwise
+                int lengthwiseCapacity = (listing.length / 10) * (listing.width / vehicles[0].length);
+                orientationCap["lengthwise"][vehicleKey] = lengthwiseCapacity;
             }
-            else
-            {
-                return lengthResult;
-            }
+
+            capacities[listing] = orientationCap;
         }
+
+        // Run DFS for both orientations
+        var widthResult = FindCheapestAssignmentForOrientation(vehicles, listings, capacities, "widthwise");
+        var lengthResult = FindCheapestAssignmentForOrientation(vehicles, listings, capacities, "lengthwise");
+
+        if (widthResult == null) return lengthResult;
+        if (lengthResult == null) return widthResult;
+
+        return widthResult.total_price_in_cents <= lengthResult.total_price_in_cents
+            ? widthResult
+            : lengthResult;
     }
+
     
     
 public static SearchResult? FindCheapestAssignmentForOrientation(
     List<Vehicle> vehicles,
     List<Listing> listings,
-    Dictionary<Listing, Dictionary<string, Dictionary<Vehicle, int>>> capacities,
+    Dictionary<Listing, Dictionary<string, Dictionary<string, int>>> capacities,
     string orientation)
 {
     if (vehicles.Count == 0 || listings.Count == 0) return null;
 
-    // Step 1: Flatten vehicles based on quantity
+    // Flatten vehicles based on quantity
     List<Vehicle> vehicleUnits = new List<Vehicle>();
     foreach (Vehicle v in vehicles)
-    {
         for (int i = 0; i < v.quantity; i++)
             vehicleUnits.Add(v);
-    }
 
     SearchResult? bestResult = null;
     int bestCost = int.MaxValue;
 
-    // Step 2: DFS 
-  void DFS(
-    int vehicleIndex,
-    Dictionary<Listing, Dictionary<Vehicle,int>> usedCapacity,
-    int currentCost,
-    List<Listing> listingsUsed)
-{
-    // Base case: all vehicles placed
-    if (vehicleIndex == vehicleUnits.Count)
+    void DFS(int vehicleIndex, Dictionary<string, Dictionary<string, int>> usedCapacity, int currentCost, List<string> listingsUsedIds)
     {
-        if (currentCost < bestCost)
+        if (vehicleIndex == vehicleUnits.Count)
         {
-            bestCost = currentCost;
-            bestResult = new SearchResult
+            if (currentCost < bestCost)
             {
-                location_id = listings[0].location_id,
-                listing_ids = listingsUsed.Select(l => l.id).ToList(),
-                total_price_in_cents = currentCost
-            };
+                bestCost = currentCost;
+                bestResult = new SearchResult
+                {
+                    location_id = listings[0].location_id,
+                    listing_ids = new List<string>(listingsUsedIds),
+                    total_price_in_cents = currentCost
+                };
+            }
+            return;
         }
-        return;
-    }
 
-    var vehicle = vehicleUnits[vehicleIndex];
+        var vehicle = vehicleUnits[vehicleIndex];
+        string vehicleKey = vehicle.length.ToString();
 
-    // Try to place this vehicle in each listing
-    foreach (Listing listing in listings)
-    {
-        int used = usedCapacity.ContainsKey(listing) && usedCapacity[listing].ContainsKey(vehicle)
-            ? usedCapacity[listing][vehicle]
-            : 0;
-
-        int available = capacities[listing][orientation][vehicle] - used;
-
-        if (available <= 0) continue;
-
-        // Determine added cost
-        int addedCost = listingsUsed.Contains(listing) ? 0 : listing.price_in_cents;
-
-        // Prune if this path is already more expensive than best
-        if (currentCost + addedCost >= bestCost) continue;
-
-        // --- Update state ---
-        if (!usedCapacity.ContainsKey(listing))
-            usedCapacity[listing] = new Dictionary<Vehicle,int>();
-
-        if (!usedCapacity[listing].ContainsKey(vehicle))
-            usedCapacity[listing][vehicle] = 0;
-
-        usedCapacity[listing][vehicle]++;
-
-        bool addedListing = false;
-        if (!listingsUsed.Contains(listing))
+        foreach (Listing listing in listings)
         {
-            listingsUsed.Add(listing);
-            addedListing = true;
+            if (!usedCapacity.ContainsKey(listing.id))
+                usedCapacity[listing.id] = new Dictionary<string, int>();
+
+            int used = usedCapacity[listing.id].ContainsKey(vehicleKey)
+                ? usedCapacity[listing.id][vehicleKey]
+                : 0;
+
+            int available = capacities[listing][orientation][vehicleKey] - used;
+            if (available <= 0) continue;
+
+            bool isNewListing = !listingsUsedIds.Contains(listing.id);
+            int addedCost = isNewListing ? listing.price_in_cents : 0;
+
+            // Clone for DFS branch
+            var newUsedCapacity = usedCapacity.ToDictionary(kvp => kvp.Key, kvp => new Dictionary<string, int>(kvp.Value));
+            newUsedCapacity[listing.id][vehicleKey] = used + 1;
+
+            var newListingsUsedIds = new List<string>(listingsUsedIds);
+            if (isNewListing)
+                newListingsUsedIds.Add(listing.id);
+
+            DFS(vehicleIndex + 1, newUsedCapacity, currentCost + addedCost, newListingsUsedIds);
         }
-
-        // --- Recurse ---
-        DFS(vehicleIndex + 1, usedCapacity, currentCost + addedCost, listingsUsed);
-
-        // --- Backtrack ---
-        usedCapacity[listing][vehicle]--;
-        if (usedCapacity[listing][vehicle] == 0)
-            usedCapacity[listing].Remove(vehicle);
-        if (usedCapacity[listing].Count == 0)
-            usedCapacity.Remove(listing);
-
-        if (addedListing)
-            listingsUsed.Remove(listing);
     }
-}
 
-    DFS(0, new Dictionary<Listing, Dictionary<Vehicle,int>>(), 0, new List<Listing>());
+    DFS(0, new Dictionary<string, Dictionary<string, int>>(), 0, new List<string>());
 
     return bestResult;
 }
-
-
-
-
 
 
 }
