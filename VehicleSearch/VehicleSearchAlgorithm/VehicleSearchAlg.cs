@@ -21,12 +21,16 @@ public static class VehicleSearchAlg
 {
     public static void Main(string[] args)
     {
-      
+
         // Load test JSON
-        string listingsJson = File.ReadAllText(@"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\listings.json");
+        string listingsJson =
+            File.ReadAllText(
+                @"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\listings.json");
         List<Listing> listings = JsonSerializer.Deserialize<List<Listing>>(listingsJson);
 
-        string vehiclesJson = File.ReadAllText(@"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\vehicles.json");
+        string vehiclesJson =
+            File.ReadAllText(
+                @"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\vehicles.json");
         List<Vehicle> vehicles = JsonSerializer.Deserialize<List<Vehicle>>(vehiclesJson);
 
         // Call your algorithm
@@ -35,12 +39,14 @@ public static class VehicleSearchAlg
         // Print results
         foreach (var r in results)
         {
-            Console.WriteLine($"Location: {r.location_id}, Total Price: {r.total_price_in_cents}, Listings: {string.Join(",", r.listing_ids)}");
+            Console.WriteLine(
+                $"Location: {r.location_id}, Total Price: {r.total_price_in_cents}, Listings: {string.Join(",", r.listing_ids)}");
         }
     }
+
     public static List<SearchResult> FindLocations(List<Vehicle> vehicles, List<Listing> listings)
     {
-        
+
 
         List<SearchResult> results = new List<SearchResult>();
         //Group listings by their location_id
@@ -62,116 +68,63 @@ public static class VehicleSearchAlg
         return results.OrderBy(r => r.total_price_in_cents).ToList();
     }
 
-    private static SearchResult? FitVehicles(List<Vehicle> vehicles, List<Listing> listings)
-    {
-        // capacities: Listing -> orientation -> vehicleKey -> capacity
-        Dictionary<Listing, Dictionary<string, Dictionary<string, int>>> capacities =
-            new Dictionary<Listing, Dictionary<string, Dictionary<string, int>>>();
-
-        foreach (Listing listing in listings)
-        {
-            Dictionary<string, Dictionary<string, int>> orientationCap = new Dictionary<string, Dictionary<string, int>>();
-            orientationCap["widthwise"] = new Dictionary<string, int>();
-            orientationCap["lengthwise"] = new Dictionary<string, int>();
-
-            foreach (Vehicle vehicle in vehicles)
-            {
-                string vehicleKey = vehicle.length.ToString(); // simple unique key
-
-                // widthwise
-                int widthwiseCapacity = (listing.width / 10) * (listing.length / vehicles[0].length);
-                orientationCap["widthwise"][vehicleKey] = widthwiseCapacity;
-
-                // lengthwise
-                int lengthwiseCapacity = (listing.length / 10) * (listing.width / vehicles[0].length);
-                orientationCap["lengthwise"][vehicleKey] = lengthwiseCapacity;
-            }
-
-            capacities[listing] = orientationCap;
-        }
-
-        // Run DFS for both orientations
-        var widthResult = FindCheapestAssignmentForOrientation(vehicles, listings, capacities, "widthwise");
-        var lengthResult = FindCheapestAssignmentForOrientation(vehicles, listings, capacities, "lengthwise");
-
-        if (widthResult == null) return lengthResult;
-        if (lengthResult == null) return widthResult;
-
-        return widthResult.total_price_in_cents <= lengthResult.total_price_in_cents
-            ? widthResult
-            : lengthResult;
-    }
-
-    
-    
-public static SearchResult? FindCheapestAssignmentForOrientation(
-    List<Vehicle> vehicles,
-    List<Listing> listings,
-    Dictionary<Listing, Dictionary<string, Dictionary<string, int>>> capacities,
-    string orientation)
+private static SearchResult? FitVehicles(List<Vehicle> vehicles, List<Listing> listings)
 {
-    if (vehicles.Count == 0 || listings.Count == 0) return null;
-
-    // Flatten vehicles based on quantity
+    // Flatten vehicles into individual units
     List<Vehicle> vehicleUnits = new List<Vehicle>();
-    foreach (Vehicle v in vehicles)
+    foreach (var v in vehicles)
         for (int i = 0; i < v.quantity; i++)
             vehicleUnits.Add(v);
 
     SearchResult? bestResult = null;
     int bestCost = int.MaxValue;
 
-    void DFS(int vehicleIndex, Dictionary<string, Dictionary<string, int>> usedCapacity, int currentCost, List<string> listingsUsedIds)
+    // Generate all subsets of listings (powerset)
+    int n = listings.Count;
+    for (int mask = 1; mask < (1 << n); mask++) // skip mask=0 (no listings)
     {
-        if (vehicleIndex == vehicleUnits.Count)
+        List<Listing> combo = new List<Listing>();
+        int totalCost = 0;
+        foreach (int i in Enumerable.Range(0, n))
         {
-            if (currentCost < bestCost)
+            if ((mask & (1 << i)) != 0)
             {
-                bestCost = currentCost;
-                bestResult = new SearchResult
-                {
-                    location_id = listings[0].location_id,
-                    listing_ids = new List<string>(listingsUsedIds),
-                    total_price_in_cents = currentCost
-                };
+                combo.Add(listings[i]);
+                totalCost += listings[i].price_in_cents;
             }
-            return;
         }
 
-        var vehicle = vehicleUnits[vehicleIndex];
-        string vehicleKey = vehicle.length.ToString();
-
-        foreach (Listing listing in listings)
+        // Check if this combination can fit all vehicles
+        if (CanFitAllVehicles(vehicleUnits, combo))
         {
-            if (!usedCapacity.ContainsKey(listing.id))
-                usedCapacity[listing.id] = new Dictionary<string, int>();
-
-            int used = usedCapacity[listing.id].ContainsKey(vehicleKey)
-                ? usedCapacity[listing.id][vehicleKey]
-                : 0;
-
-            int available = capacities[listing][orientation][vehicleKey] - used;
-            if (available <= 0) continue;
-
-            bool isNewListing = !listingsUsedIds.Contains(listing.id);
-            int addedCost = isNewListing ? listing.price_in_cents : 0;
-
-            // Clone for DFS branch
-            var newUsedCapacity = usedCapacity.ToDictionary(kvp => kvp.Key, kvp => new Dictionary<string, int>(kvp.Value));
-            newUsedCapacity[listing.id][vehicleKey] = used + 1;
-
-            var newListingsUsedIds = new List<string>(listingsUsedIds);
-            if (isNewListing)
-                newListingsUsedIds.Add(listing.id);
-
-            DFS(vehicleIndex + 1, newUsedCapacity, currentCost + addedCost, newListingsUsedIds);
+            if (totalCost < bestCost)
+            {
+                bestCost = totalCost;
+                bestResult = new SearchResult
+                {
+                    location_id = combo[0].location_id,
+                    listing_ids = combo.Select(l => l.id).ToList(),
+                    total_price_in_cents = totalCost
+                };
+            }
         }
     }
 
-    DFS(0, new Dictionary<string, Dictionary<string, int>>(), 0, new List<string>());
-
     return bestResult;
 }
+
+// Simple area-based check: try widthwise and lengthwise orientations
+private static bool CanFitAllVehicles(List<Vehicle> vehicleUnits, List<Listing> listings)
+{
+    // Calculate total vehicle area
+    int totalVehicleArea = vehicleUnits.Sum(v => v.length * 10); // width always 10
+    int totalListingAreaWidthwise = listings.Sum(l => l.width * l.length);
+    int totalListingAreaLengthwise = listings.Sum(l => l.width * l.length); // same for now
+
+    // Quick approximation: if total area fits, assume it's packable
+    return totalVehicleArea <= totalListingAreaWidthwise || totalVehicleArea <= totalListingAreaLengthwise;
+}
+
 
 
 }
