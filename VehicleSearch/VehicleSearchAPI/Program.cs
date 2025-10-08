@@ -1,6 +1,7 @@
+
 using System.Text.Json;
-using Objects; // namespace from your objects project
-using VehicleSearchAlgorithm; // namespace where VehicleSearchAlg lives
+using Objects; // domain classes
+using VehicleSearchAlgorithm; // your algorithm namespace
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +16,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Load listings at startup (from data/listings.json)
+// Load listings once at startup from data/listings.json
 var listingsPath = Path.Combine(app.Environment.ContentRootPath, "data", "listings.json");
 List<Listing> listings = new();
 if (File.Exists(listingsPath))
@@ -27,13 +28,10 @@ if (File.Exists(listingsPath))
     }) ?? new List<Listing>();
 }
 
-// POST endpoint: receives vehicles, uses in-project listings
+// POST endpoint: takes vehicles from request body, uses listings in memory
 app.MapPost("/search", (List<Vehicle> vehicles) =>
 {
-    // Call your search algorithm
-    // Adjust this call to match your actual method signature
     var results = VehicleSearchAlg.FindLocations(vehicles, listings);
-
     return Results.Ok(results);
 });
 
