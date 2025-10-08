@@ -19,31 +19,14 @@ namespace VehicleSearchAlgorithm;
 
 public static class VehicleSearchAlg
 {
-    public static void Main(string[] args)
-    {
-
-        // Load test JSON
-        string listingsJson =
-            File.ReadAllText(
-                @"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\listings.json");
-        List<Listing> listings = JsonSerializer.Deserialize<List<Listing>>(listingsJson);
-
-        string vehiclesJson =
-            File.ReadAllText(
-                @"C:\Users\watri\RiderProjects\vehicle-search\VehicleSearch\VehicleSearchAlgorithm\vehicles.json");
-        List<Vehicle> vehicles = JsonSerializer.Deserialize<List<Vehicle>>(vehiclesJson);
-
-        // Call your algorithm
-        var results = VehicleSearchAlg.FindLocations(vehicles, listings);
-
-        // Print results
-        foreach (var r in results)
-        {
-            Console.WriteLine(
-                $"Location: {r.location_id}, Total Price: {r.total_price_in_cents}, Listings: {string.Join(",", r.listing_ids)}");
-        }
-    }
-
+    /// <summary>
+    /// Carries out the high level sorting, takes in a list of vehicles that need to be stored, as well as listing options
+    /// </summary>
+    /// <param name="vehicles"></param>
+    /// <param name="listings"></param>
+    /// <returns>
+    /// A list of all Possible sort configs, ordered from cheapest to most expensive
+    /// </returns>
     public static List<SearchResult> FindLocations(List<Vehicle> vehicles, List<Listing> listings)
     {
 
@@ -67,7 +50,13 @@ public static class VehicleSearchAlg
 
         return results.OrderBy(r => r.total_price_in_cents).ToList();
     }
-
+/// <summary>
+/// Calculates if the vehicles can be fit into the given listings, as well as the cost to do so.
+/// </summary>
+/// <param name="vehicles"></param>
+/// Returns a searchresult of the listings neccesary, and the total price
+/// <param name="listings"></param>
+/// <returns></returns>
 private static SearchResult? FitVehicles(List<Vehicle> vehicles, List<Listing> listings)
 {
     // Flatten vehicles into individual units

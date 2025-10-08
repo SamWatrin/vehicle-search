@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VehicleSearchAlgorithm", "V
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Objects", "Objects\Objects.csproj", "{1D1DE540-45F6-4963-A0E4-5200C94EA943}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VehicleSearchAlgorithmTest", "VehicleSearchAlgorithmTest\VehicleSearchAlgorithmTest.csproj", "{34362A2F-6B63-471B-84F5-77A9C2EE5174}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VehicleSearchAPI", "VehicleSearchAPI\VehicleSearchAPI.csproj", "{9BDC2405-2F4B-4D16-A3D6-CE0D25DE97E1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,9 +20,9 @@ Global
 		{1D1DE540-45F6-4963-A0E4-5200C94EA943}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D1DE540-45F6-4963-A0E4-5200C94EA943}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1D1DE540-45F6-4963-A0E4-5200C94EA943}.Release|Any CPU.Build.0 = Release|Any CPU
-		{34362A2F-6B63-471B-84F5-77A9C2EE5174}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{34362A2F-6B63-471B-84F5-77A9C2EE5174}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{34362A2F-6B63-471B-84F5-77A9C2EE5174}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{34362A2F-6B63-471B-84F5-77A9C2EE5174}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9BDC2405-2F4B-4D16-A3D6-CE0D25DE97E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9BDC2405-2F4B-4D16-A3D6-CE0D25DE97E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9BDC2405-2F4B-4D16-A3D6-CE0D25DE97E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9BDC2405-2F4B-4D16-A3D6-CE0D25DE97E1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
